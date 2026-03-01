@@ -39,8 +39,8 @@
 yourdomain.com *.yourdomain.com {
 	tls {
 		dns godaddy {
-			api_key GODADDY_API_KEY
-			api_secret GODADDY_API_SECRET
+			api_key $GODADDY_API_KEY
+			api_secret $GODADDY_API_SECRET
 		}
 	}
 	# Use the proxy_upstream code snippet (defined above)
