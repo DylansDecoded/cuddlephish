@@ -1,0 +1,6 @@
+{
+  "tracking_id": "id",
+  "logging_endpoint": "https://www.phishmongerserver.com/create_event",
+  "admin_cookie": "admin_cookie=s3cret",
+  "post_url_search": "ppsecure"
+}

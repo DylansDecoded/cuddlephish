@@ -1,0 +1,42 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    # Pass the target name as the first argument, e.g.: docker compose run app mytarget
+    # Or set CUDDLEPHISH_TARGET in your environment / .env file
+    command: ["${CUDDLEPHISH_TARGET:-example}"]
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./targets.json:/app/targets.json:ro
+      - ./pm.json:/app/pm.json:ro
+      - ./favicons:/app/favicons:ro
+      - ./payload.txt:/app/payload.txt:ro
+      - user_data:/app/user_data
+    expose:
+      - "58082"
+    restart: unless-stopped
+    shm_size: "2gb"
+    cap_add:
+      - SYS_ADMIN
+
+  caddy:
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  user_data:
+  caddy_data:
+  caddy_config:

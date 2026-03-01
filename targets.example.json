@@ -1,0 +1,9 @@
+{
+  "example": {
+    "login_page": "https://login.example.com",
+    "boot_location": "https://login.example.com/auth",
+    "tab_title": "Example Login",
+    "favicon": "example.ico",
+    "payload": "payload.txt"
+  }
+}
