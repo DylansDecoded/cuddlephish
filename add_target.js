@@ -56,6 +56,7 @@ var favicon_url = '';
       response.buffer().then(file => {
         const fileName = `favicons/${short_name}.ico`;
         const filePath = path.resolve(__dirname, fileName);
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
         const writeStream = fs.createWriteStream(filePath);
         writeStream.write(file);
       }).catch(err => {
