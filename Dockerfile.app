@@ -37,7 +37,10 @@ RUN apt-get update && apt-get install -y \
     fonts-liberation \
     wget \
     chromium \
+    python3 \
+    python3-pip \
     --no-install-recommends \
+    && pip3 install --break-system-packages mitmproxy \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
