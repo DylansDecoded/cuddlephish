@@ -440,14 +440,16 @@ fastify.ready(async function(err){
     })
     socket.on("get_cookies", async function(browser_id){
       const browser = browsers.get('browser_id', browser_id)
-      let cookie_data = await browser.target_page._client.send('Storage.getCookies')
+      const cdp = await browser.target_page.createCDPSession()
+      let cookie_data = await cdp.send('Storage.getCookies')
       let cookies = cookie_data.cookies
-      let dom_data = await browser.target_page._client.send('DOMStorage.getDOMStorageItems',{
+      let dom_data = await cdp.send('DOMStorage.getDOMStorageItems',{
         storageId: {
           securityOrigin: await browser.target_page.evaluate(() => window.origin),
           isLocalStorage: true,
         },
       })
+      await cdp.detach()
       let local_storage = dom_data.entries
       fastify.io.to(socket.id).emit('cookie_jar', {cookies: {url: browser.target_page.url(), cookies: cookies, local_storage: local_storage}, browser_id: browser.browser_id})
     })
@@ -504,11 +506,13 @@ fastify.ready(async function(err){
         }
         const istext = key.length === 1 ? true: false;
         if(istext){
-          await browser.target_page._client.send('Input.dispatchKeyEvent', {
+          const cdp = await browser.target_page.createCDPSession()
+          await cdp.send('Input.dispatchKeyEvent', {
             type: 'keyDown',
             key: key,
             text: key,
           })
+          await cdp.detach()
         }else if (key != 'Dead'){
           await browser.target_page.keyboard.down(key)
         }
@@ -519,11 +523,13 @@ fastify.ready(async function(err){
       if(browser){
         const istext = key.length === 1 ? true: false;
         if(istext){
-          await browser.target_page._client.send('Input.dispatchKeyEvent', {
+          const cdp = await browser.target_page.createCDPSession()
+          await cdp.send('Input.dispatchKeyEvent', {
             type: 'keyUp',
             key: key,
             text: key,
           })
+          await cdp.detach()
         }else if(key != 'Dead'){
           await browser.target_page.keyboard.up(key)
         }
@@ -553,7 +559,7 @@ fastify.ready(async function(err){
 
 // Run the server!
 const start = async () => {
-  fastify.listen(58082, '0.0.0.0', (err) => {
+  fastify.listen({ port: 58082, host: '0.0.0.0' }, (err) => {
     if (err) {
       fastify.log.error(err)
       process.exit(1)
